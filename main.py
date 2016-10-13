@@ -13,6 +13,7 @@ class process:
 		self.CPUBurst = cbt
 		self.numBursts = nb
 		self.IOBurst = io
+		self.status = None
 		self.Completed = False
 		self.completedTime = -1
 
@@ -49,6 +50,18 @@ class process:
 
 	def completionTime(self):
 		return self.completedTime
+
+	def getStatus(self):
+		return self.status
+
+	def block(self):
+		self.status = "blocked"
+
+	def run(self):
+		self.status = "running"
+
+	def ready(self):
+		self.status = "ready"
 
 	def __lt__(self,other):
 		return self.arrivalTime < other.arrivalTime
@@ -100,7 +113,7 @@ def statsOutput(statList, of, appending=False):
 	f.write("-- total number of preemptions: " + str(statList[5]) + "\n")
 
 
-def RoundRobin(processList):
+def RoundRobin(processList, t_slice=84):
 	#given a process list, do the RR algorithm and return the 5 needed output stats
 	return ["RR",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
@@ -108,6 +121,8 @@ def FCFS(processList):
 	#given a process list, do the FCFS algorithm and return the 5 needed output stats
 	#create FIFO queue
 	processQueue = queue.Queue()
+	for p in processList:
+		#add process to queue
 	return ["FCFS",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
 def SJF(processList):
@@ -119,7 +134,10 @@ if __name__ == '__main__':
 	if len(sys.argv) != 3:
 		sys.exit("ERROR: Invalid arguments\nUSAGE: python main.py <input-file> <stats-output-file>")
 	processList = processFile(sys.argv[1]) 
-	print("\n\n\n")
+	m = 1 #for future use; number of processors in use
+	t_cs = 8 #time required to perform a context switch
+	n = len(processList) #number of processes
+	t_slice = 84
 	for i in processList:
 		print(i)
 	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
