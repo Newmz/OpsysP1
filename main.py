@@ -102,8 +102,8 @@ def processFile(fn):
 			# line[2] - CPU Burst Time
 			# line[3] - Number of Bursts
 			# line[4] - io Time
-			print(processes[len(processes)-1])
-	sorted(processes, key=lambda p:p.getArrivalTime())
+			#print(processes[len(processes)-1])
+	
 	return processes
 
 def statsOutput(statList, of, appending=False):
@@ -126,9 +126,18 @@ def RoundRobin(processList, t_slice=84):
 def FCFS(processList):
 	#given a process list, do the FCFS algorithm and return the 5 needed output stats
 	#create FIFO queue
+	sorted(processes, key=lambda p:p.getArrivalTime())
+
 	processQueue = queue.Queue()
+	outputstr = ""
 	for p in processList:
-		#add process to queue
+		processQueue.put(p)
+		outputstr += p.getName() + " "
+		print("["+outputstr[:-1]+"]")
+	print("["+outputstr[:-1]+"]")
+
+
+
 	return ["FCFS",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
 def SJF(processList):
@@ -252,10 +261,11 @@ if __name__ == '__main__':
 	t_cs = 8 #time required to perform a context switch
 	n = len(processList) #number of processes
 	t_slice = 84
-	for i in processList:
-		print(i)
+	#for i in processList:
+		#print(i)
 	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
-	SJF(processList);
+	#SJF(processList)
+	FCFS(processList)
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
