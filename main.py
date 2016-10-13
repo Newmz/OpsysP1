@@ -15,6 +15,7 @@ class process:
 		self.IOBurst = io
 		self.Completed = False
 		self.completedTime = -1
+		self.timeLock = 0
 
 	def __str__(self):
 		outputStr = ''
@@ -83,6 +84,11 @@ def processFile(fn):
 					sys.stderr.write("ERROR: invalid input file format\n")
 					sys.exit()
 			processes.append(process(line[0], line[1], line[2], line[3], line[4]))
+			# line[0] - Process Name
+			# line[1] - Initial arrival time
+			# line[2] - CPU Burst Time
+			# line[3] - Number of Bursts
+			# line[4] - io Time
 			print(processes[len(processes)-1])
 	sorted(processes, key=lambda p:p.getArrivalTime())
 	return processes
@@ -112,6 +118,114 @@ def FCFS(processList):
 
 def SJF(processList):
 	#given a process list, do the SJF algorithm and return the 5 needed output stats
+ 
+	#Sort by smallest CPU burst to largest
+	#Service time = Time elapsed from beginning until current period
+	#Wait time = Service time - Arrival time
+
+	#0 Context Switches
+	#0 Preemptions
+
+	# "Time" elapsed in milliseconds
+	live = True
+	time = 0
+	completed = 0
+	burstCount = 0
+	target = 0
+
+
+	# Initialize variables
+	AvgCPUBurst = 0
+	AvgWait = 0
+	AvgTurnaround = 0
+
+	# Start simulation
+
+	# Sort SJF list by CPU Burst length
+	byBurst = sorted(processList,key=lambda x: int(x.CPUBurst))
+	finished = []
+	endLength = len(byBurst)
+
+	# Sim Loop
+	while live:
+		#print ("There are %r processes in the queue" % len(byBurst))
+
+		# # start process skip
+		# if int(byBurst[target].timeLock) > 0 & int(byBurst[target].timeLock) < time:
+		# 	byBurst[target].timeLock = 0
+		# 	continue
+
+		# look for lowest process not in IO
+		if int(byBurst[target].timeLock) > time:
+			print("time %sms: Process %s blocked on I/O until time %sms" % (time, byBurst[target].name, byBurst[target].timeLock))
+			target += 1
+			continue
+			
+		# end process skip
+
+		# increment time by CPU burst amount
+		print ("time %sms: Process %s started using the CPU [Q %s]" %(time, byBurst[target].name, byBurst[target].name))
+		time += int(byBurst[target].CPUBurst)
+		byBurst[target].timeLock = time + int(byBurst[target].IOBurst)
+		
+		# Decrement number of bursts
+		byBurst[target].numBursts = int(byBurst[target].numBursts) - 1
+
+		# Display Burst completion
+		if int(byBurst[target].numBursts) > 0:
+			print ("time %sms: Process %s completed a CPU burst; [Q %s]" %(time, byBurst[target].name, byBurst[target].name))
+			
+
+		
+
+
+		# increment averages
+		AvgCPUBurst += int(byBurst[target].CPUBurst)
+
+
+
+		# check for remaining CPU bursts
+		if byBurst[target].numBursts <= 0:
+			print ("time %sms: Process %s terminated; [Q %s]" %(time, byBurst[target].name, byBurst[target].name))
+			byBurst[target].complete(time)
+			# increment # of completed process chains
+			completed += 1
+
+			finished.append(byBurst.pop(target))
+			
+			# Sort SJF list by CPU Burst length
+			byBurst = sorted(byBurst,key=lambda x: int(x.CPUBurst))
+
+			# stop Sim if all completed
+			if completed >= endLength:
+				live = False
+				break
+
+			# Start list from beginning
+			target = 0
+			continue
+
+		target = 0
+	# end Sim loop
+
+
+
+	#----------------------------------------------------------------------
+
+
+
+	# Get Average CPU Burst
+	#AvgCPUBurst /= burstCount
+	print ("BurstCount =", burstCount)
+	print ("AvgCPUBurst =", AvgCPUBurst)
+	print ("Shit Time =", time)
+
+	# Get Average Wait
+
+
+	numContextSwitches = 0;
+	numPreemptions = 0;
+
 	return ["SJF",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
 
@@ -123,6 +237,7 @@ if __name__ == '__main__':
 	for i in processList:
 		print(i)
 	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
+	SJF(processList);
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
