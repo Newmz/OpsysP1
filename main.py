@@ -13,10 +13,10 @@ class process:
 		self.CPUBurst = cbt
 		self.numBursts = nb
 		self.IOBurst = io
-		self.status = None
+		self.status = "None"
 		self.Completed = False
 		self.completedTime = -1
-		self.timeLock = 0
+		self.nIE = 0		#next Interesting Event
 
 	def __str__(self):
 		outputStr = ''
@@ -126,7 +126,7 @@ def RoundRobin(processList, t_slice=84):
 def FCFS(processList):
 	#given a process list, do the FCFS algorithm and return the 5 needed output stats
 	#create FIFO queue
-	sorted(processes, key=lambda p:p.getArrivalTime())
+	sorted(processList, key=lambda p:p.getArrivalTime())
 
 	processQueue = queue.Queue()
 	outputstr = ""
@@ -140,6 +140,24 @@ def FCFS(processList):
 
 	return ["FCFS",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
+def print_queue(queue):
+	
+	# empty queue
+	if len(queue) == 0:
+		return "empty"
+	
+	# otherwise fill in process names
+	x = 0;
+	queueString = ''
+	while x < len(queue):
+		if x < len(queue) - 1:
+			queueString += str(queue[x].name)+' '
+		else:
+			queueString += str(queue[x].name)
+		x+=1
+
+	return queueString
+
 def SJF(processList):
 	#given a process list, do the SJF algorithm and return the 5 needed output stats
  
@@ -147,89 +165,116 @@ def SJF(processList):
 	#Service time = Time elapsed from beginning until current period
 	#Wait time = Service time - Arrival time
 
-	#0 Context Switches
-	#0 Preemptions
-
-	# "Time" elapsed in milliseconds
-	live = True
-	time = 0
-	completed = 0
-	burstCount = 0
-	target = 0
-
-
 	# Initialize variables
+	live = True		# For simulation status
+	time = 0 		# Elapsed in milliseconds
+	completed = 0	# Number of processes completely finished
+	burstCount = 0	# Number of total bursts 
+	enter = 0
+	exit = 0
+
+	
 	AvgCPUBurst = 0
 	AvgWait = 0
 	AvgTurnaround = 0
 
-	# Start simulation
+
+	
+	
+
+	
 
 	# Sort SJF list by CPU Burst length
-	cpuQueue = sorted(processList,key=lambda x: int(x.CPUBurst))
+	#cpuQueue = sorted(processList,key=lambda x: int(x.CPUBurst))
+	cpuQueue = []
+	runningQueue = []
 	ioQueue = []
-	endLength = len(cpuQueue)
+	endLength = len(processList)
+
+
+	# Start simulation
+	print("time %sms: Simulator started for SJF [Q %s]" % (time, print_queue(cpuQueue)))
 
 	# Sim Loop
 	while live:
-		#print ("There are %r processes in the queue" % len(cpuQueue))
+		# start processing into cpuQueue based on arrival time
+		if enter < len(processList):
+			for i in range(len(processList)):
+				# Check for uninitilaized process
+				if (processList[i].status == "None") and (int(processList[i].arrivalTime) <= time):
+					processList[i].ready()
+					cpuQueue.append(processList[i])
+					cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
+					print("time %sms: Process %s arrived [Q %s]" %(time, processList[i].name, print_queue(cpuQueue)))
+					enter += 1
+				elif (processList[i].status == "None"):
+					processList[i].nIE = processList[i].arrivalTime
+		# end processing into cpuQueue
 
-		# # start process skip
-		# if int(cpuQueue[target].timeLock) > 0 & int(cpuQueue[target].timeLock) < time:
-		# 	cpuQueue[target].timeLock = 0
-		# 	continue
+		# check move io -> cpuQueue
+		for i in range(len(ioQueue)):
+			# move valid IO into CPU
+			if int(ioQueue[i].nIE) < time:
+				ioQueue[i].ready()
+				cpuQueue.append(ioQueue.pop(i))
+				time -= 1
+				print("time %sms: Process %s completed I/O [Q " % (time, cpuQueue[len(cpuQueue)-1].name), end='')
+				cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
+				print("%s]" %(print_queue(cpuQueue)))				
+				break
+		# end move io -> cpuQueue
 
-		# look for lowest process not in IO
-		if int(cpuQueue[target].timeLock) > time:
-			print("time %sms: Process %s blocked on I/O until time %sms" % (time, cpuQueue[target].name, cpuQueue[target].timeLock))
-			target += 1
-			continue
-			
-		# end process skip
+				
+		# Run CPUBurst
+		if len(cpuQueue) > 0 and len(runningQueue) == 0:
+			runningQueue.append(cpuQueue.pop(0))
+			time += 4
+			print ("time %sms: Process %s started using the CPU [Q %s]" %(time, runningQueue[0].name, print_queue(cpuQueue)))
+			runningQueue[0].run()
+			#time += int(runningQueue[0].CPUBurst)
+			runningQueue[0].nIE = time + int(runningQueue[0].CPUBurst)
 
-		# increment time by CPU burst amount
-		print ("time %sms: Process %s started using the CPU [Q %s]" %(time, cpuQueue[target].name, cpuQueue[target].name))
-		time += int(cpuQueue[target].CPUBurst)
-		cpuQueue[target].timeLock = time + int(cpuQueue[target].IOBurst)
-		
-		# Decrement number of bursts
-		cpuQueue[target].numBursts = int(cpuQueue[target].numBursts) - 1
+			# Decrement number of bursts
+			runningQueue[0].numBursts = int(runningQueue[0].numBursts) - 1
 
 		# Display Burst completion
-		if int(cpuQueue[target].numBursts) > 0:
-			print ("time %sms: Process %s completed a CPU burst; [Q %s]" %(time, cpuQueue[target].name, cpuQueue[target].name))
+		if len(runningQueue) == 1 and int(runningQueue[0].numBursts) > 0 and int(runningQueue[0].nIE) <= time:
+			print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, runningQueue[0].name, runningQueue[0].numBursts), end='')
+			runningQueue[0].nIE = time + int(runningQueue[0].IOBurst)
 			
+			# increment averages
+			AvgCPUBurst += int(runningQueue[0].CPUBurst)
 
+			print("%s]" %(print_queue(cpuQueue)))
+			runningQueue[0].block()
+			print("time %sms: Process %s blocked on I/O until time %sms [Q " % (time, runningQueue[0].name, runningQueue[0].nIE), end='')
+			print("%s]" %(print_queue(cpuQueue)))
+			time += 3
+			# Send process to IO
+			ioQueue.append(runningQueue.pop(0))
+		# end Burst completion
 		
-
-
-		# increment averages
-		AvgCPUBurst += int(cpuQueue[target].CPUBurst)
-
-
-
 		# check for remaining CPU bursts
-		if cpuQueue[target].numBursts <= 0:
-			print ("time %sms: Process %s terminated; [Q %s]" %(time, cpuQueue[target].name, cpuQueue[target].name))
-			cpuQueue[target].complete(time)
+		elif len(runningQueue) == 1 and int(runningQueue[0].numBursts) <= 0 and runningQueue[0].nIE == time:
+			print ("time %sms: Process %s terminated [Q " %(time, runningQueue[0].name), end='')
+			runningQueue[0].complete(time)
 			# increment # of completed process chains
 			completed += 1
+			runningQueue.pop(0)
 
-			ioQueue.append(cpuQueue.pop(target))
-			
-			# Sort SJF list by CPU Burst length
-			cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
+			print ("%s]" %(print_queue(cpuQueue)))
 
 			# stop Sim if all completed
 			if completed >= endLength:
 				live = False
+				time += 4
+				print("time %sms: Simulator ended for SJF" % (time))
 				break
 
-			# Start list from beginning
-			target = 0
-			continue
+			time += 3
+		# end CPU burst check
 
-		target = 0
+		time += 1
 	# end Sim loop
 
 
@@ -264,8 +309,8 @@ if __name__ == '__main__':
 	#for i in processList:
 		#print(i)
 	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
-	#SJF(processList)
-	FCFS(processList)
+	SJF(processList)
+	#FCFS(processList)
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
