@@ -165,6 +165,8 @@ def SJF(processList):
 	#Service time = Time elapsed from beginning until current period
 	#Wait time = Service time - Arrival time
 
+	# Petey Ko
+
 	# Initialize variables
 	live = True		# For simulation status
 	time = 0 		# Elapsed in milliseconds
@@ -249,7 +251,7 @@ def SJF(processList):
 			print("%s]" %(print_queue(cpuQueue)))
 			time += 3
 			# Send process to IO
-			ioQueue.append(runningQueue.po#Bp(0))
+			ioQueue.append(runningQueue.pop(0))
 		
 		# check for remaining CPU bursts
 		elif len(runningQueue) == 1 and int(runningQueue[0].numBursts) <= 0 and runningQueue[0].nIE == time:
@@ -279,28 +281,16 @@ def SJF(processList):
 
 
 	#----------------------------------------------------------------------
-
+	# Calculate Averages & Statistics
 	AvgCPUBurst /= burstCount
 	AvgWait /= endLength
 	AvgTurnaround /= endLength
-
-
-	# Get Average CPU Burst
-	#AvgCPUBurst /= burstCount
-	print ("BurstCount =", burstCount)
-	print ("AvgCPUBurst =", AvgCPUBurst)
-	print ("AvgWait =", AvgWait)
-	print ("AvgTurnaround =", AvgTurnaround)
-	print ("Shit Time =", time)
-
-	# Get Average Wait
-
-
 	numContextSwitches = 0;
 	numPreemptions = 0;
 
 	return ["SJF",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
+# end SJF
 
 if __name__ == '__main__':
 	if len(sys.argv) != 3:
@@ -313,7 +303,7 @@ if __name__ == '__main__':
 	#for i in processList:
 		#print(i)
 	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
-	SJF(processList)
+	statsOutput(SJF(processList), sys.argv[2])
 	#FCFS(processList)
 
 # -- average CPU burst time: ###.## ms
