@@ -171,18 +171,10 @@ def SJF(processList):
 	completed = 0	# Number of processes completely finished
 	burstCount = 0	# Number of total bursts 
 	enter = 0
-	exit = 0
 
-	
 	AvgCPUBurst = 0
 	AvgWait = 0
 	AvgTurnaround = 0
-
-
-	
-	
-
-	
 
 	# Sort SJF list by CPU Burst length
 	#cpuQueue = sorted(processList,key=lambda x: int(x.CPUBurst))
@@ -202,6 +194,7 @@ def SJF(processList):
 			for i in range(len(processList)):
 				# Check for uninitilaized process
 				if (processList[i].status == "None") and (int(processList[i].arrivalTime) <= time):
+					# Add process and resort queue for SJF
 					processList[i].ready()
 					cpuQueue.append(processList[i])
 					cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
@@ -211,7 +204,7 @@ def SJF(processList):
 					processList[i].nIE = processList[i].arrivalTime
 		# end processing into cpuQueue
 
-		# check move io -> cpuQueue
+		# start io -> cpuQueue
 		for i in range(len(ioQueue)):
 			# move valid IO into CPU
 			if int(ioQueue[i].nIE) < time:
@@ -222,10 +215,10 @@ def SJF(processList):
 				cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
 				print("%s]" %(print_queue(cpuQueue)))				
 				break
-		# end move io -> cpuQueue
+		# end io -> cpuQueue
 
 				
-		# Run CPUBurst
+		# start CPUBurst
 		if len(cpuQueue) > 0 and len(runningQueue) == 0:
 			runningQueue.append(cpuQueue.pop(0))
 			time += 4
@@ -236,28 +229,34 @@ def SJF(processList):
 
 			# Decrement number of bursts
 			runningQueue[0].numBursts = int(runningQueue[0].numBursts) - 1
+		# end CPUBurst
 
-		# Display Burst completion
+		# start Burst completion
 		if len(runningQueue) == 1 and int(runningQueue[0].numBursts) > 0 and int(runningQueue[0].nIE) <= time:
 			print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, runningQueue[0].name, runningQueue[0].numBursts), end='')
 			runningQueue[0].nIE = time + int(runningQueue[0].IOBurst)
 			
 			# increment averages
+			burstCount += 1
 			AvgCPUBurst += int(runningQueue[0].CPUBurst)
 
 			print("%s]" %(print_queue(cpuQueue)))
+			
+			# Block process and send to IO Queue
 			runningQueue[0].block()
 			print("time %sms: Process %s blocked on I/O until time %sms [Q " % (time, runningQueue[0].name, runningQueue[0].nIE), end='')
+			AvgWait += runningQueue[0].nIE - time
 			print("%s]" %(print_queue(cpuQueue)))
 			time += 3
 			# Send process to IO
-			ioQueue.append(runningQueue.pop(0))
-		# end Burst completion
+			ioQueue.append(runningQueue.po#Bp(0))
 		
 		# check for remaining CPU bursts
 		elif len(runningQueue) == 1 and int(runningQueue[0].numBursts) <= 0 and runningQueue[0].nIE == time:
 			print ("time %sms: Process %s terminated [Q " %(time, runningQueue[0].name), end='')
 			runningQueue[0].complete(time)
+			AvgTurnaround += int(runningQueue[0].completedTime) - int(runningQueue[0].arrivalTime)
+
 			# increment # of completed process chains
 			completed += 1
 			runningQueue.pop(0)
@@ -272,7 +271,7 @@ def SJF(processList):
 				break
 
 			time += 3
-		# end CPU burst check
+		# end Burst completion
 
 		time += 1
 	# end Sim loop
@@ -281,12 +280,17 @@ def SJF(processList):
 
 	#----------------------------------------------------------------------
 
+	AvgCPUBurst /= burstCount
+	AvgWait /= endLength
+	AvgTurnaround /= endLength
 
 
 	# Get Average CPU Burst
 	#AvgCPUBurst /= burstCount
 	print ("BurstCount =", burstCount)
 	print ("AvgCPUBurst =", AvgCPUBurst)
+	print ("AvgWait =", AvgWait)
+	print ("AvgTurnaround =", AvgTurnaround)
 	print ("Shit Time =", time)
 
 	# Get Average Wait
