@@ -152,17 +152,31 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
     plistidx = 0
     time = 0
 
-    AvgCPUBurst = 0
-    AvgWait = 0
-    AvgTurnaround = 0
+    AvgCPUBurst = 0.0
+    AvgWait = 0.0
+    AvgTurnaround = 0.0
     numContextSwitches = 0
     numPreemptions = 0
 
+    waitTime = [0] * numprocs
+    arriveTime = []
     running = 1
     sliceend = sys.maxsize
     burstend = sys.maxsize
     cswitchend = sys.maxsize
     blockend = []
+
+    # Populate initial arrival times
+    for x in processList:
+        arriveTime.append(int(x.getArrivalTime()))
+
+    # Calculate average burst time
+    numbursts = 0
+    for x in processList:
+        AvgCPUBurst += int(x.getCPUBurstTime()) * int(x.getNumBursts())
+        numbursts += int(x.getNumBursts())
+    AvgCPUBurst /= numbursts
+
 
     print('time {0:d}ms: Simulator started for RR {1}'.format(time, pReadyQueue(readyq)))
     # Loop for cpu simulation
@@ -181,9 +195,15 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
 
         # If time for a context switch
         if time == cswitchend:
-            runq.append((readyq.pop(0)[0],time))
+            numContextSwitches += 1
+
+            nextp = readyq.pop(0)
+            runq.append((nextp[0],time))
             sliceend = time + t_slice
             burstend = time + int(runq[0][0].getRemainingBurstTime())
+
+            # Update wait time
+            waitTime[processList.index(nextp[0])] += time - nextp[1] - t_cs
 
             print('time {0:d}ms: Process {1} started using the CPU {2}'.format(time, runq[len(runq)-1][0].getName(), pReadyQueue(readyq)))
 
@@ -206,13 +226,16 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                 done.numBursts = str(int(done.getNumBursts()) - 1)
                 done.remainingBurstTime = done.getCPUBurstTime()
 
+                # Add to turnaround time
+                AvgTurnaround += time - arriveTime[processList.index(done)]
+
                 # If process done
                 if int(done.getNumBursts()) == 0:
                     done.complete(time)
 
                     print('time {0:d}ms: Process {1} terminated {2}'.format(time, done.getName(), pReadyQueue(readyq)))
                 else:
-                    print('time {0:d}ms: Process {1} completed CPU burst; {2:d} to go {3}'.format(time, done.getName(),
+                    print('time {0:d}ms: Process {1} completed a CPU burst; {2:d} to go {3}'.format(time, done.getName(),
                         int(done.getNumBursts()), pReadyQueue(readyq)))
 
                     # Add to blocked queue
@@ -233,6 +256,7 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
             # If time for a preemption
             elif time == sliceend:
                 if len(readyq) > 0:
+                    numPreemptions += 1
                     # Remove from running queue
                     done = runq.pop(0)
                     done[0].preempt(str(int(done[0].getRemainingBurstTime()) - time + done[1]))
@@ -264,11 +288,15 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                     done = blockq.pop(i)
                     readyq.append((done,time))
 
+                    # Udate arrival time for new burst
+                    arriveTime[processList.index(done)] = time
+
                     print('time {0:d}ms: Process {1} completed I/O {2}'.format(time, done.getName(), pReadyQueue(readyq)))
 
         # For when there's a process that needs to switch in
         if len(runq) == 0 and len(readyq) > 0 and cswitchend == sys.maxsize:
             cswitchend = time + t_cs // 2
+            waitTime[processList.index(readyq[0][0])] += t_cs // 2
 
 
         # Determine the next significant time
@@ -292,11 +320,18 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
 
         # Determine state for completing the simulation
         if len(readyq) == 0 and len(runq) == 0 and plistidx >= numprocs - 1 and len(blockq) == 0:
-            time += 4
+            time += t_cs // 2
             running = 0
         else:
             time = nextevent
 
+
+    # Calculate average wait time
+    for x in waitTime:
+        AvgWait += x
+    AvgWait /= numbursts
+    # Calulate average turnaround time
+    AvgTurnaround /= numbursts
 
     print('time {0:d}ms: Simulator ended for RR'.format(time))
 
@@ -484,7 +519,7 @@ if __name__ == '__main__':
     statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     #statsOutput(SJF(processList), sys.argv[2])
     #FCFS(processList)
-    RoundRobin(processList, m, t_slice, t_cs)
+    statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
