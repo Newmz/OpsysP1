@@ -146,7 +146,7 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
     readyq = []     #ready queue
     runq = []       #running queue (processes running) tuple with (process, time execution started)
     blockq = []        #blocked queue (processes performing io)
-    sorted(processList, key=lambda p:p.getArrivalTime())
+    processList = sorted(processList, key=lambda p:int(p.getArrivalTime()))
 
     numprocs = len(processList)
     plistidx = 0
@@ -168,17 +168,15 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
     # Loop for cpu simulation
     while running:
         # If arrival time for the next process, add it to the ready queue
-        nextproc = processList[plistidx]
-        if int(nextproc.getArrivalTime()) == time:
-            readyq.append((nextproc,time))
-            plistidx += 1
+        if plistidx < numprocs:
+            nextproc = processList[plistidx]
+            if int(nextproc.getArrivalTime()) == time:
+                readyq.append((nextproc,time))
+                plistidx += 1
+                if len(runq) == 0:
+                    cswitchend = time + t_cs // 2
 
-            print('time {0:d}ms: Process {1} arrived {2}'.format(time, nextproc.getName(), pReadyQueue(readyq)))
-
-        # Determine state for completing the simulation
-        if len(readyq) == 0 and len(runq) == 0 and plistidx >= numprocs - 1:
-            running = 0
-            break
+                print('time {0:d}ms: Process {1} arrived {2}'.format(time, nextproc.getName(), pReadyQueue(readyq)))
 
 
         # If time for a context switch
@@ -194,7 +192,7 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
 
         else:
             # If run queue empty add process from ready queue
-            if len(runq) < m:
+            if len(runq) < m and len(readyq) > 0 and cswitchend == sys.maxsize:
                 runq.append((readyq.pop(0)[0],time))
                 sliceend = time + t_slice
                 burstend = time + int(runq[0][0].getRemainingBurstTime())
@@ -205,18 +203,24 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
             if time == burstend:
                 # Remove from running queue
                 done = runq.pop(0)[0]
-                done.numBursts = int(done.numBursts) - 1
+                done.numBursts = str(int(done.getNumBursts()) - 1)
                 done.remainingBurstTime = done.getCPUBurstTime()
 
-                print('time {0:d}ms: Process {1} completed CPU burst; {2:d} to go {3}'.format(time, done.getName(),
-                    int(done.numBursts), pReadyQueue(readyq)))
+                # If process done
+                if int(done.getNumBursts()) == 0:
+                    done.complete(time)
 
-                # Add to blocked queue
-                blockq.append(done)
-                blockend.append(time + int(done.getIOBurstTime()))
+                    print('time {0:d}ms: Process {1} terminated {2}'.format(time, done.getName(), pReadyQueue(readyq)))
+                else:
+                    print('time {0:d}ms: Process {1} completed CPU burst; {2:d} to go {3}'.format(time, done.getName(),
+                        int(done.getNumBursts()), pReadyQueue(readyq)))
 
-                print('time {0:d}ms: Process {1} blocked on I/O until time {2:d}ms {3}'.format(time, done.getName(),
-                    time + int(done.getIOBurstTime()), pReadyQueue(readyq)))
+                    # Add to blocked queue
+                    blockq.append(done)
+                    blockend.append(time + int(done.getIOBurstTime()))
+
+                    print('time {0:d}ms: Process {1} blocked on I/O until time {2:d}ms {3}'.format(time, done.getName(),
+                        time + int(done.getIOBurstTime()), pReadyQueue(readyq)))
 
                 # Reset running variables
                 sliceend = sys.maxsize
@@ -231,7 +235,7 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                 if len(readyq) > 0:
                     # Remove from running queue
                     done = runq.pop(0)
-                    done[0].preempt(str(int(done[0].getRemainingBurstTime()) - time - done[1]))
+                    done[0].preempt(str(int(done[0].getRemainingBurstTime()) - time + done[1]))
 
                     # Add to ready queue
                     readyq.append((done[0],time))
@@ -246,6 +250,9 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                 else:
                     print('time {0:d}ms: Time slice expired; no preemption because ready queue is empty {1}'.format(time, pReadyQueue(readyq)))
 
+                    # Reset running variables
+                    sliceend = time + t_slice
+
             # If time to return from being blocked
             if len(blockend) > 0 and time == min(blockend, key=int):
                 # Number of processes finished with io
@@ -255,21 +262,20 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                     blockend.pop(i)
 
                     done = blockq.pop(i)
-                    if int(done.numBursts) <= 0:
-                        done.complete(time)
+                    readyq.append((done,time))
 
-                        print('time {0:d}ms: Process {1} terminated {2}'.format(time, done.getName(), pReadyQueue(readyq)))
-                    else:
-                        readyq.append(done,time)
+                    print('time {0:d}ms: Process {1} completed I/O {2}'.format(time, done.getName(), pReadyQueue(readyq)))
 
-                        print('time {0:d}ms: Process {1} completed I/O {2}'.format(time, done.getName(), pReadyQueue(readyq)))
+        # For when there's a process that needs to switch in
+        if len(runq) == 0 and len(readyq) > 0 and cswitchend == sys.maxsize:
+            cswitchend = time + t_cs // 2
 
 
         # Determine the next significant time
         nextevent = sys.maxsize
 
         # Time of next process arrival
-        if plistidx < numprocs - 1:
+        if plistidx < numprocs:
             nextevent = int(processList[plistidx].getArrivalTime())
         # Time for context switch
         if cswitchend < nextevent:
@@ -284,7 +290,13 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
         if len(blockq) > 0 and min(blockend, key=int) < nextevent:
             nextevent = min(blockend, key=int)
 
-        time = nextevent
+        # Determine state for completing the simulation
+        if len(readyq) == 0 and len(runq) == 0 and plistidx >= numprocs - 1 and len(blockq) == 0:
+            time += 4
+            running = 0
+        else:
+            time = nextevent
+
 
     print('time {0:d}ms: Simulator ended for RR'.format(time))
 
@@ -328,150 +340,150 @@ def print_queue(queue):
 def SJF(processList):
     #given a process list, do the SJF algorithm and return the 5 needed output stats
  
-	#Sort by smallest CPU burst to largest
-	#Service time = Time elapsed from beginning until current period
-	#Wait time = Service time - Arrival time
+    #Sort by smallest CPU burst to largest
+    #Service time = Time elapsed from beginning until current period
+    #Wait time = Service time - Arrival time
 
-	# Petey Ko
+    # Petey Ko
 
-	# Initialize variables
-	live = True		# For simulation status
-	time = 0 		# Elapsed in milliseconds
-	completed = 0	# Number of processes completely finished
-	burstCount = 0	# Number of total bursts 
-	enter = 0
+    # Initialize variables
+    live = True     # For simulation status
+    time = 0        # Elapsed in milliseconds
+    completed = 0   # Number of processes completely finished
+    burstCount = 0  # Number of total bursts 
+    enter = 0
 
-	AvgCPUBurst = 0
-	AvgWait = 0
-	AvgTurnaround = 0
+    AvgCPUBurst = 0
+    AvgWait = 0
+    AvgTurnaround = 0
 
-	# Sort SJF list by CPU Burst length
-	#cpuQueue = sorted(processList,key=lambda x: int(x.CPUBurst))
-	cpuQueue = []
-	runningQueue = []
-	ioQueue = []
-	endLength = len(processList)
-
-
-	# Start simulation
-	print("time %sms: Simulator started for SJF [Q %s]" % (time, print_queue(cpuQueue)))
-
-	# Sim Loop
-	while live:
-		# start processing into cpuQueue based on arrival time
-		if enter < len(processList):
-			for i in range(len(processList)):
-				# Check for uninitilaized process
-				if (processList[i].status == "None") and (int(processList[i].arrivalTime) <= time):
-					# Add process and resort queue for SJF
-					processList[i].ready()
-					cpuQueue.append(processList[i])
-					cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
-					print("time %sms: Process %s arrived [Q %s]" %(time, processList[i].name, print_queue(cpuQueue)))
-					enter += 1
-				elif (processList[i].status == "None"):
-					processList[i].nIE = processList[i].arrivalTime
-		# end processing into cpuQueue
-
-		# start io -> cpuQueue
-		for i in range(len(ioQueue)):
-			# move valid IO into CPU
-			if int(ioQueue[i].nIE) < time:
-				ioQueue[i].ready()
-				cpuQueue.append(ioQueue.pop(i))
-				time -= 1
-				print("time %sms: Process %s completed I/O [Q " % (time, cpuQueue[len(cpuQueue)-1].name), end='')
-				cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
-				print("%s]" %(print_queue(cpuQueue)))				
-				break
-		# end io -> cpuQueue
-
-				
-		# start CPUBurst
-		if len(cpuQueue) > 0 and len(runningQueue) == 0:
-			runningQueue.append(cpuQueue.pop(0))
-			time += 4
-			print ("time %sms: Process %s started using the CPU [Q %s]" %(time, runningQueue[0].name, print_queue(cpuQueue)))
-			runningQueue[0].run()
-			#time += int(runningQueue[0].CPUBurst)
-			runningQueue[0].nIE = time + int(runningQueue[0].CPUBurst)
-
-			# Decrement number of bursts
-			runningQueue[0].numBursts = int(runningQueue[0].numBursts) - 1
-		# end CPUBurst
-
-		# start Burst completion
-		if len(runningQueue) == 1 and int(runningQueue[0].numBursts) > 0 and int(runningQueue[0].nIE) <= time:
-			print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, runningQueue[0].name, runningQueue[0].numBursts), end='')
-			runningQueue[0].nIE = time + int(runningQueue[0].IOBurst)
-			
-			# increment averages
-			burstCount += 1
-			AvgCPUBurst += int(runningQueue[0].CPUBurst)
-
-			print("%s]" %(print_queue(cpuQueue)))
-			
-			# Block process and send to IO Queue
-			runningQueue[0].block()
-			print("time %sms: Process %s blocked on I/O until time %sms [Q " % (time, runningQueue[0].name, runningQueue[0].nIE), end='')
-			AvgWait += runningQueue[0].nIE - time
-			print("%s]" %(print_queue(cpuQueue)))
-			time += 3
-			# Send process to IO
-			ioQueue.append(runningQueue.pop(0))
-		
-		# check for remaining CPU bursts
-		elif len(runningQueue) == 1 and int(runningQueue[0].numBursts) <= 0 and runningQueue[0].nIE == time:
-			print ("time %sms: Process %s terminated [Q " %(time, runningQueue[0].name), end='')
-			runningQueue[0].complete(time)
-			AvgTurnaround += int(runningQueue[0].completedTime) - int(runningQueue[0].arrivalTime)
-
-			# increment # of completed process chains
-			completed += 1
-			runningQueue.pop(0)
-
-			print ("%s]" %(print_queue(cpuQueue)))
-
-			# stop Sim if all completed
-			if completed >= endLength:
-				live = False
-				time += 4
-				print("time %sms: Simulator ended for SJF" % (time))
-				break
-
-			time += 3
-		# end Burst completion
-
-		time += 1
-	# end Sim loop
+    # Sort SJF list by CPU Burst length
+    #cpuQueue = sorted(processList,key=lambda x: int(x.CPUBurst))
+    cpuQueue = []
+    runningQueue = []
+    ioQueue = []
+    endLength = len(processList)
 
 
+    # Start simulation
+    print("time %sms: Simulator started for SJF [Q %s]" % (time, print_queue(cpuQueue)))
 
-	#----------------------------------------------------------------------
-	# Calculate Averages & Statistics
-	AvgCPUBurst /= burstCount
-	AvgWait /= endLength
-	AvgTurnaround /= endLength
-	numContextSwitches = 0;
-	numPreemptions = 0;
+    # Sim Loop
+    while live:
+        # start processing into cpuQueue based on arrival time
+        if enter < len(processList):
+            for i in range(len(processList)):
+                # Check for uninitilaized process
+                if (processList[i].status == "None") and (int(processList[i].arrivalTime) <= time):
+                    # Add process and resort queue for SJF
+                    processList[i].ready()
+                    cpuQueue.append(processList[i])
+                    cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
+                    print("time %sms: Process %s arrived [Q %s]" %(time, processList[i].name, print_queue(cpuQueue)))
+                    enter += 1
+                elif (processList[i].status == "None"):
+                    processList[i].nIE = processList[i].arrivalTime
+        # end processing into cpuQueue
 
-	return ["SJF",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
+        # start io -> cpuQueue
+        for i in range(len(ioQueue)):
+            # move valid IO into CPU
+            if int(ioQueue[i].nIE) < time:
+                ioQueue[i].ready()
+                cpuQueue.append(ioQueue.pop(i))
+                time -= 1
+                print("time %sms: Process %s completed I/O [Q " % (time, cpuQueue[len(cpuQueue)-1].name), end='')
+                cpuQueue = sorted(cpuQueue,key=lambda x: int(x.CPUBurst))
+                print("%s]" %(print_queue(cpuQueue)))               
+                break
+        # end io -> cpuQueue
+
+                
+        # start CPUBurst
+        if len(cpuQueue) > 0 and len(runningQueue) == 0:
+            runningQueue.append(cpuQueue.pop(0))
+            time += 4
+            print ("time %sms: Process %s started using the CPU [Q %s]" %(time, runningQueue[0].name, print_queue(cpuQueue)))
+            runningQueue[0].run()
+            #time += int(runningQueue[0].CPUBurst)
+            runningQueue[0].nIE = time + int(runningQueue[0].CPUBurst)
+
+            # Decrement number of bursts
+            runningQueue[0].numBursts = int(runningQueue[0].numBursts) - 1
+        # end CPUBurst
+
+        # start Burst completion
+        if len(runningQueue) == 1 and int(runningQueue[0].numBursts) > 0 and int(runningQueue[0].nIE) <= time:
+            print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, runningQueue[0].name, runningQueue[0].numBursts), end='')
+            runningQueue[0].nIE = time + int(runningQueue[0].IOBurst)
+            
+            # increment averages
+            burstCount += 1
+            AvgCPUBurst += int(runningQueue[0].CPUBurst)
+
+            print("%s]" %(print_queue(cpuQueue)))
+            
+            # Block process and send to IO Queue
+            runningQueue[0].block()
+            print("time %sms: Process %s blocked on I/O until time %sms [Q " % (time, runningQueue[0].name, runningQueue[0].nIE), end='')
+            AvgWait += runningQueue[0].nIE - time
+            print("%s]" %(print_queue(cpuQueue)))
+            time += 3
+            # Send process to IO
+            ioQueue.append(runningQueue.pop(0))
+        
+        # check for remaining CPU bursts
+        elif len(runningQueue) == 1 and int(runningQueue[0].numBursts) <= 0 and runningQueue[0].nIE == time:
+            print ("time %sms: Process %s terminated [Q " %(time, runningQueue[0].name), end='')
+            runningQueue[0].complete(time)
+            AvgTurnaround += int(runningQueue[0].completedTime) - int(runningQueue[0].arrivalTime)
+
+            # increment # of completed process chains
+            completed += 1
+            runningQueue.pop(0)
+
+            print ("%s]" %(print_queue(cpuQueue)))
+
+            # stop Sim if all completed
+            if completed >= endLength:
+                live = False
+                time += 4
+                print("time %sms: Simulator ended for SJF" % (time))
+                break
+
+            time += 3
+        # end Burst completion
+
+        time += 1
+    # end Sim loop
+
+
+
+    #----------------------------------------------------------------------
+    # Calculate Averages & Statistics
+    AvgCPUBurst /= burstCount
+    AvgWait /= endLength
+    AvgTurnaround /= endLength
+    numContextSwitches = 0;
+    numPreemptions = 0;
+
+    return ["SJF",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
 # end SJF
 
 if __name__ == '__main__':
-	if len(sys.argv) != 3:
-		sys.exit("ERROR: Invalid arguments\nUSAGE: python main.py <input-file> <stats-output-file>")
-	processList = processFile(sys.argv[1]) 
-	m = 1 #for future use; number of processors in use
-	t_cs = 8 #time required to perform a context switch
-	n = len(processList) #number of processes
-	t_slice = 84
-	#for i in processList:
-		#print(i)
-	statsOutput(["Test",1,2,3,4,5], sys.argv[2])
-	statsOutput(SJF(processList), sys.argv[2])
-	#FCFS(processList)
+    if len(sys.argv) != 3:
+        sys.exit("ERROR: Invalid arguments\nUSAGE: python main.py <input-file> <stats-output-file>")
+    processList = processFile(sys.argv[1]) 
+    m = 1 #for future use; number of processors in use
+    t_cs = 8 #time required to perform a context switch
+    n = len(processList) #number of processes
+    t_slice = 84
+    #for i in processList:
+        #print(i)
+    statsOutput(["Test",1,2,3,4,5], sys.argv[2])
+    #statsOutput(SJF(processList), sys.argv[2])
+    #FCFS(processList)
     RoundRobin(processList, m, t_slice, t_cs)
 
 # -- average CPU burst time: ###.## ms
