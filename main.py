@@ -611,7 +611,9 @@ if __name__ == '__main__':
         #print(i)
     #statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     statsOutput(FCFS(processList), sys.argv[2], True)
+    processList = processFile(sys.argv[1]) 
     statsOutput(SJF(processList), sys.argv[2], True)
+    processList = processFile(sys.argv[1]) 
     statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2], True)
     
 
