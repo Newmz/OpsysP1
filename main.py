@@ -420,7 +420,7 @@ def FCFS(processList):
                 AvgWait += (time - t) - 8 - temp.CPUBurst
                 IOQ.append(temp)
                 temp.nIE = time + temp.IOBurst
-                print ("time %sms: Process %s blocked on I/0 until time %sms [Q %s]" %(time, temp.name, temp.nIE, print_queue(CPUQ)))
+                print ("time %sms: Process %s blocked on I/O until time %sms [Q %s]" %(time, temp.name, temp.nIE, print_queue(CPUQ)))
                 time += 3
 
             elif RunningQ[0].numBursts <= 0 and RunningQ[0].nIE <= time:
