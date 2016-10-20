@@ -351,6 +351,17 @@ def FCFS(processList):
     IOQ = []        
     RunningQ = []  
 
+    avgCPUBurst = 0
+    totalBursts = 0
+    for p in processList:
+        for i in range(0, p.numBursts):
+            avgCPUBurst += p.CPUBurst
+            totalBursts += 1
+    avgCPUBurst /= totalBursts
+
+    numContextSwitches = 0
+    numPreemptions = 0
+
     # Start simulation
     print("time %sms: Simulator started for FCFS [Q %s]" % (time, print_queue(CPUQ)))
 
@@ -416,6 +427,7 @@ def FCFS(processList):
 
         time += 1
         #if done, exit loop
+
 
     return ["FCFS",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
 
