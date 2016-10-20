@@ -120,11 +120,12 @@ def statsOutput(statList, of, appending=False):
     else:
         f = open(of, 'w')
     f.write("Algorithm " + statList[0] + "\n")
-    f.write("-- average CPU burst time: " + str(statList[1]) + " ms\n")
-    f.write("-- average wait time: " + str(statList[2]) + " ms\n")
-    f.write("-- average turnaround time: " + str(statList[3]) + " ms\n")
-    f.write("-- total number of context switches: " + str(statList[4]) + "\n")
-    f.write("-- total number of preemptions: " + str(statList[5]) + "\n")
+    f.write("-- average CPU burst time: {:05.2f} ms\n".format(statList[1]))
+    f.write("-- average wait time: {:05.2f} ms\n".format(statList[2]))
+    f.write("-- average turnaround time: {:05.2f} ms\n".format(statList[3]))
+    f.write("-- total number of context switches: {:02d} ms\n".format(statList[4]))
+    f.write("-- total number of preemptions: {:02d} ms\n".format(statList[5]))
+    f.close()
 
 def pReadyQueue(queue):
     queueString = '[Q'
@@ -596,7 +597,7 @@ if __name__ == '__main__':
     statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     #statsOutput(SJF(processList), sys.argv[2])
     #FCFS(processList)
-    #statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
+    statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
     statsOutput(FCFS(processList))
 
 # -- average CPU burst time: ###.## ms
