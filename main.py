@@ -123,8 +123,8 @@ def statsOutput(statList, of, appending=False):
     f.write("-- average CPU burst time: {:05.2f} ms\n".format(statList[1]))
     f.write("-- average wait time: {:05.2f} ms\n".format(statList[2]))
     f.write("-- average turnaround time: {:05.2f} ms\n".format(statList[3]))
-    f.write("-- total number of context switches: {:02d} ms\n".format(statList[4]))
-    f.write("-- total number of preemptions: {:02d} ms\n".format(statList[5]))
+    f.write("-- total number of context switches: {:02d}\n".format(statList[4]))
+    f.write("-- total number of preemptions: {:02d}\n".format(statList[5]))
     f.close()
 
 def pReadyQueue(queue):
@@ -351,14 +351,16 @@ def FCFS(processList):
     CPUQ = []
     IOQ = []        
     RunningQ = []  
-
-    avgCPUBurst = 0
+    AvgWait = 0
+    AvgCPUBurst = 0
     totalBursts = 0
     for p in processList:
-        for i in range(0, p.numBursts):
-            avgCPUBurst += p.CPUBurst
+        print(p.numBursts)
+        for i in range(0, int(p.numBursts)):
+            AvgCPUBurst += p.CPUBurst
             totalBursts += 1
-    avgCPUBurst /= totalBursts
+    AvgCPUBurst /= totalBursts
+    AvgTurnaround = 0
 
     numContextSwitches = 0
     numPreemptions = 0
@@ -382,6 +384,7 @@ def FCFS(processList):
                 p.ready()
                 CPUQ.append(p)
                 IOQ.remove(p)
+                p.nIE = time
                 time -= 1
                 print("time %sms: Process %s completed I/O [Q " % (time, CPUQ[len(CPUQ)-1].name), end='')
                 print("%s]", print_queue(CPUQ))
@@ -391,6 +394,8 @@ def FCFS(processList):
         if len(CPUQ) > 0 and len(RunningQ) == 0:
             RunningQ.append(CPUQ.pop(0))
             time += 4
+            numContextSwitches += 1
+            AvgWait += RunningQ[0].nIE - time
             print ("time %sms: Process %s started using the CPU [Q %s]" %(time, RunningQ[0].name, print_queue(CPUQ)))
             RunningQ[0].run()
             RunningQ[0].nIE = time + RunningQ[0].CPUBurst
@@ -405,11 +410,13 @@ def FCFS(processList):
                 RunningQ[0].numBursts -= 1
                 temp = RunningQ.pop(0)
                 IOQ.append(temp)
+                temp.nIE = time + 3 + temp.IOBurst
                 time += 3
             elif RunningQ[0].numBursts <= 0 and RunningQ[0].nIE <= time:
                 print ("time %sms: Process %s terminated [Q " %(time, RunningQ[0].name), end='')
                 RunningQ[0].complete(time)
                 #AvgTurnaround += int(RunningQ[0].completedTime) - int(RunningQ[0].arrivalTime)
+                AvgTurnaround += (time - RunningQ[0].arrivalTime)
 
                 # increment # of completed process chains
                 finished += 1
@@ -428,6 +435,8 @@ def FCFS(processList):
 
         time += 1
         #if done, exit loop
+    AvgWait/=len(processList)
+    AvgTurnaround /= len(processList)
 
 
     return ["FCFS",AvgCPUBurst, AvgWait,AvgTurnaround,numContextSwitches,numPreemptions];
@@ -597,8 +606,8 @@ if __name__ == '__main__':
     statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     #statsOutput(SJF(processList), sys.argv[2])
     #FCFS(processList)
-    statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
-    statsOutput(FCFS(processList))
+    #statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
+    statsOutput(FCFS(processList), sys.argv[2])
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
