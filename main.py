@@ -189,6 +189,9 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                 readyq.append((nextproc,time))
                 plistidx += 1
                 if len(runq) == 0:
+                    if cswitchend == sys.maxsize:
+                        waitTime[plistidx-1] += t_cs // 2
+
                     cswitchend = time + t_cs // 2
 
                 print('time {0:d}ms: Process {1} arrived {2}'.format(time, nextproc.getName(), pReadyQueue(readyq)))
@@ -253,6 +256,7 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
                 # Context switch time if waiting process
                 if len(readyq) > 0:
                     cswitchend = time + t_cs
+                    #waitTime[processList.index(readyq[0][0])] -= t_cs // 2
 
             # If time for a preemption
             elif time == sliceend:
