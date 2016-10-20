@@ -120,9 +120,9 @@ def statsOutput(statList, of, appending=False):
     else:
         f = open(of, 'w')
     f.write("Algorithm " + statList[0] + "\n")
-    f.write("-- average CPU burst time: {:05.2f} ms\n".format(statList[1]))
-    f.write("-- average wait time: {:05.2f} ms\n".format(statList[2]))
-    f.write("-- average turnaround time: {:05.2f} ms\n".format(statList[3]))
+    f.write("-- average CPU burst time: {:005.2f} ms\n".format(statList[1]))
+    f.write("-- average wait time: {:005.2f} ms\n".format(statList[2]))
+    f.write("-- average turnaround time: {:005.2f} ms\n".format(statList[3]))
     f.write("-- total number of context switches: {:02d}\n".format(statList[4]))
     f.write("-- total number of preemptions: {:02d}\n".format(statList[5]))
     f.close()
@@ -387,7 +387,7 @@ def FCFS(processList):
                 p.nIE = time
                 time -= 1
                 print("time %sms: Process %s completed I/O [Q " % (time, CPUQ[len(CPUQ)-1].name), end='')
-                print("%s]", print_queue(CPUQ))
+                print("{}]".format(print_queue(CPUQ)))
                 break
 
         #if the CPU is idle and there are processes in the ready queue, start the first
@@ -399,19 +399,25 @@ def FCFS(processList):
             print ("time %sms: Process %s started using the CPU [Q %s]" %(time, RunningQ[0].name, print_queue(CPUQ)))
             RunningQ[0].run()
             RunningQ[0].nIE = time + RunningQ[0].CPUBurst
+            RunningQ[0].numBursts -= 1
 
 
         #if a process has finished its CPU Burst, send it to do IO
         if len(RunningQ) == 1:
             if RunningQ[0].numBursts > 0 and RunningQ[0].nIE <= time:
+               # if (RunningQ[0].IOBurst == 0):
+                    #process is done-zo
+
+                RunningQ[0].block()
+                #RunningQ[0].numBursts -= 1
                 print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, RunningQ[0].name, RunningQ[0].numBursts), end='')
                 print("%s]" %(print_queue(CPUQ)))
-                RunningQ[0].block()
-                RunningQ[0].numBursts -= 1
                 temp = RunningQ.pop(0)
                 IOQ.append(temp)
-                temp.nIE = time + 3 + temp.IOBurst
+                temp.nIE = time + temp.IOBurst
+                print ("time %sms: Process %s blocked on I/0 until time %sms [Q %s]" %(time, temp.name, temp.nIE, print_queue(CPUQ)))
                 time += 3
+
             elif RunningQ[0].numBursts <= 0 and RunningQ[0].nIE <= time:
                 print ("time %sms: Process %s terminated [Q " %(time, RunningQ[0].name), end='')
                 RunningQ[0].complete(time)
@@ -607,7 +613,7 @@ if __name__ == '__main__':
     #statsOutput(SJF(processList), sys.argv[2])
     #FCFS(processList)
     #statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
-    statsOutput(FCFS(processList), sys.argv[2])
+    statsOutput(FCFS(processList), sys.argv[2], True)
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
