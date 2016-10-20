@@ -609,11 +609,11 @@ if __name__ == '__main__':
     t_slice = 84
     #for i in processList:
         #print(i)
-    statsOutput(["Test",1,2,3,4,5], sys.argv[2])
-    #statsOutput(SJF(processList), sys.argv[2])
-    #FCFS(processList)
-    #statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2])
+    #statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     statsOutput(FCFS(processList), sys.argv[2], True)
+    statsOutput(SJF(processList), sys.argv[2], True)
+    statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2], True)
+    
 
 # -- average CPU burst time: ###.## ms
 # -- average wait time: ###.## ms
