@@ -340,7 +340,6 @@ def RoundRobin(processList, m, t_slice=84, t_cs=8):
 
 def FCFS(processList):
     #given a process list, do the FCFS algorithm and return the 5 needed output stats
-    #create FIFO queue
     sorted(processList, key=lambda p:p.getArrivalTime())
 
     running = True
@@ -348,23 +347,24 @@ def FCFS(processList):
     finished = 0
     burstTotal = 0
 
-    CPUQ = []
-    IOQ = []        
-    RunningQ = []  
-    QAT = [] #QUEUE ARRIVAL TIME
-    AvgWait = 0
+    CPUQ = []       #list that acts like the CPU Queue
+    IOQ = []        #list that acts like an IO Queue (for this purpose)   
+    RunningQ = []   #basically can have any number of CPUS (for project1 there will not be more than 1 process at a time in this)
+    QAT = []        #QUEUE ARRIVAL TIME. this basically corresponds 1 to 1 with the CPU Queue but contains the time at which that process arrived
+
+    #some stat calculations 
+    AvgWait = 0     
     AvgCPUBurst = 0
     totalBursts = 0
     for p in processList:
-        print(p.numBursts)
         for i in range(0, int(p.numBursts)):
             AvgCPUBurst += p.CPUBurst
             totalBursts += 1
     AvgCPUBurst /= totalBursts
     AvgTurnaround = 0
-
     numContextSwitches = 0
     numPreemptions = 0
+
 
     # Start simulation
     print("time %sms: Simulator started for FCFS [Q %s]" % (time, print_queue(CPUQ)))
@@ -387,10 +387,10 @@ def FCFS(processList):
                 CPUQ.append(p)
                 QAT.append(time)
                 IOQ.remove(p)
-                p.nIE = time
                 time -= 1
                 print("time %sms: Process %s completed I/O [Q " % (time, CPUQ[len(CPUQ)-1].name), end='')
                 print("{}]".format(print_queue(CPUQ)))
+                p.nIE = time
                 break
 
         #if the CPU is idle and there are processes in the ready queue, start the first
