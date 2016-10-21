@@ -3,6 +3,11 @@ import os
 import time
 import queue
 
+# CONTRIBUTORS
+# PETER KO
+# ZACH BILETCH
+# TIMOTHY NEWMAN
+
 DB = 1
 
 class process:
@@ -348,8 +353,7 @@ def FCFS(processList):
 
     running = True
     time = 0
-    finished = 0
-    burstTotal = 0
+    finished = 0    #number of completed processes
 
     CPUQ = []       #list that acts like the CPU Queue
     IOQ = []        #list that acts like an IO Queue (for this purpose)   
@@ -393,7 +397,6 @@ def FCFS(processList):
             RunningQ.append(CPUQ.pop(0))
             time += 4
             notInc = True
-            #AvgWait -= 4
             numContextSwitches += 1
             print ("time %sms: Process %s started using the CPU [Q %s]" %(time, RunningQ[0].name, print_queue(CPUQ)))
             RunningQ[0].run()
@@ -416,13 +419,9 @@ def FCFS(processList):
         #if a process has finished its CPU Burst, send it to do IO
         if len(RunningQ) == 1:
             if RunningQ[0].numBursts > 0 and RunningQ[0].nIE <= time:
-               # if (RunningQ[0].IOBurst == 0):
-                    #process is done-zo
-
                 RunningQ[0].block()
                 #RunningQ[0].numBursts -= 1
                 print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, RunningQ[0].name, RunningQ[0].numBursts), end='')
-                
                 print("%s]" %(print_queue(CPUQ)))
                 temp = RunningQ.pop(0)
                 t = QAT.pop(0)
@@ -436,8 +435,6 @@ def FCFS(processList):
             elif RunningQ[0].numBursts <= 0 and RunningQ[0].nIE <= time:
                 print ("time %sms: Process %s terminated [Q " %(time, RunningQ[0].name), end='')
                 RunningQ[0].complete(time)
-                #AvgTurnaround += int(RunningQ[0].completedTime) - int(RunningQ[0].arrivalTime)
-                #AvgTurnaround += (time - RunningQ[0].arrivalTime)
                 t = QAT.pop(0)
                 AvgTurnaround += (time - t)
                 AvgWait += (time - t) - 4 - RunningQ[0].CPUBurst
