@@ -120,9 +120,9 @@ def statsOutput(statList, of, appending=False):
     else:
         f = open(of, 'w')
     f.write("Algorithm " + statList[0] + "\n")
-    f.write("-- average CPU burst time: {:005.2f} ms\n".format(statList[1]))
-    f.write("-- average wait time: {:005.2f} ms\n".format(statList[2]))
-    f.write("-- average turnaround time: {:005.2f} ms\n".format(statList[3]))
+    f.write("-- average CPU burst time: {:.2f} ms\n".format(statList[1]))
+    f.write("-- average wait time: {:.2f} ms\n".format(statList[2]))
+    f.write("-- average turnaround time: {:.2f} ms\n".format(statList[3]))
     f.write("-- total number of context switches: {:d}\n".format(statList[4]))
     f.write("-- total number of preemptions: {:d}\n".format(statList[5]))
     f.close()
