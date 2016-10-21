@@ -356,6 +356,7 @@ def FCFS(processList):
     RunningQ = []   #basically can have any number of CPUS (for project1 there will not be more than 1 process at a time in this)
     QAT = []        #QUEUE ARRIVAL TIME. this basically corresponds 1 to 1 with the CPU Queue but contains the time at which that process arrived
 
+    notInc = False
     #some stat calculations 
     AvgWait = 0     
     AvgCPUBurst = 0
@@ -374,6 +375,7 @@ def FCFS(processList):
     print("time %sms: Simulator started for FCFS [Q %s]" % (time, print_queue(CPUQ)))
 
     while running:
+        notInc = False
         #if any newly arrived processes need to be added, do so
         for p in processList:
             if p.getStatus() == "None" and p.getArrivalTime() <= time:
@@ -384,29 +386,31 @@ def FCFS(processList):
             elif p.getStatus() == "None":
                 p.nIE = p.getArrivalTime()
 
-        #if a process has finished IO and has more CPU Bursts, re-add it to the queue
-        for p in IOQ:
-            if p.nIE < time:
-                p.ready()
-                CPUQ.append(p)
-                QAT.append(time)
-                IOQ.remove(p)
-                time -= 1
-                print("time %sms: Process %s completed I/O [Q " % (time, CPUQ[len(CPUQ)-1].name), end='')
-                print("{}]".format(print_queue(CPUQ)))
-                p.nIE = time
-                break
+        
 
         #if the CPU is idle and there are processes in the ready queue, start the first
         if len(CPUQ) > 0 and len(RunningQ) == 0:
             RunningQ.append(CPUQ.pop(0))
             time += 4
+            notInc = True
             numContextSwitches += 1
             print ("time %sms: Process %s started using the CPU [Q %s]" %(time, RunningQ[0].name, print_queue(CPUQ)))
             RunningQ[0].run()
             RunningQ[0].nIE = time + RunningQ[0].CPUBurst
             RunningQ[0].numBursts -= 1
-
+        #if a process has finished IO and has more CPU Bursts, re-add it to the queue
+        for p in IOQ:
+            if p.nIE <= time:
+                p.ready()
+                CPUQ.append(p)
+                QAT.append(time)
+                IOQ.remove(p)
+                notInc = True
+                time -= 1
+                print("time %sms: Process %s completed I/O [Q " % (p.nIE, CPUQ[len(CPUQ)-1].name), end='')
+                print("{}]".format(print_queue(CPUQ)))
+                p.nIE = time
+                break
 
         #if a process has finished its CPU Burst, send it to do IO
         if len(RunningQ) == 1:
@@ -417,6 +421,7 @@ def FCFS(processList):
                 RunningQ[0].block()
                 #RunningQ[0].numBursts -= 1
                 print ("time %sms: Process %s completed a CPU burst; %s to go [Q " %(time, RunningQ[0].name, RunningQ[0].numBursts), end='')
+                
                 print("%s]" %(print_queue(CPUQ)))
                 temp = RunningQ.pop(0)
                 t = QAT.pop(0)
@@ -425,8 +430,8 @@ def FCFS(processList):
                 IOQ.append(temp)
                 temp.nIE = time + temp.IOBurst
                 print ("time %sms: Process %s blocked on I/O until time %sms [Q %s]" %(time, temp.name, temp.nIE, print_queue(CPUQ)))
-                time += 3
-
+                time += 4
+                continue
             elif RunningQ[0].numBursts <= 0 and RunningQ[0].nIE <= time:
                 print ("time %sms: Process %s terminated [Q " %(time, RunningQ[0].name), end='')
                 RunningQ[0].complete(time)
@@ -449,8 +454,10 @@ def FCFS(processList):
                     print("time %sms: Simulator ended for FCFS" % (time))
                     break
 
-                time += 3
-
+                time += 4
+                continue
+            if notInc:
+                time -= 1
         time += 1
         #if done, exit loop
     AvgWait/=numContextSwitches
@@ -636,8 +643,10 @@ if __name__ == '__main__':
         #print(i)
     #statsOutput(["Test",1,2,3,4,5], sys.argv[2])
     statsOutput(FCFS(processList), sys.argv[2])
+    print('')
     processList = processFile(sys.argv[1]) 
     statsOutput(SJF(processList), sys.argv[2], True)
+    print('')
     processList = processFile(sys.argv[1]) 
     statsOutput(RoundRobin(processList, m, t_slice, t_cs), sys.argv[2], True)
     
