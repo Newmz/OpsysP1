@@ -393,6 +393,7 @@ def FCFS(processList):
             RunningQ.append(CPUQ.pop(0))
             time += 4
             notInc = True
+            #AvgWait -= 4
             numContextSwitches += 1
             print ("time %sms: Process %s started using the CPU [Q %s]" %(time, RunningQ[0].name, print_queue(CPUQ)))
             RunningQ[0].run()
@@ -426,7 +427,7 @@ def FCFS(processList):
                 temp = RunningQ.pop(0)
                 t = QAT.pop(0)
                 AvgTurnaround += (time - t)
-                AvgWait += (time - t) - 8 - temp.CPUBurst
+                AvgWait += (time - t) - 4 - temp.CPUBurst
                 IOQ.append(temp)
                 temp.nIE = time + temp.IOBurst
                 print ("time %sms: Process %s blocked on I/O until time %sms [Q %s]" %(time, temp.name, temp.nIE, print_queue(CPUQ)))
@@ -439,7 +440,7 @@ def FCFS(processList):
                 #AvgTurnaround += (time - RunningQ[0].arrivalTime)
                 t = QAT.pop(0)
                 AvgTurnaround += (time - t)
-                AvgWait += (time - t) - 8 - RunningQ[0].CPUBurst
+                AvgWait += (time - t) - 4 - RunningQ[0].CPUBurst
 
                 # increment # of completed process chains
                 finished += 1
